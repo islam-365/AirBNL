@@ -1,0 +1,71 @@
+version: "3.8"
+services:
+  mysql1:
+    image: mysql:8
+    container_name: mysql1
+    ports:
+      - "3306:3306"
+    networks:
+      - streaming-network
+    volumes:
+      - db_data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_PASSWORD=root
+      - MYSQL_DATABASE=AirBNL
+  dbc:
+    build: ./DBControllerService-main
+    container_name: dbc
+    restart: unless-stopped
+    ports:
+      - "8060:8060"
+    networks:
+      - streaming-network
+    environment:
+      - mysql_url=//mysql1
+      - mysql_port=3306
+      - mysql_database_name=AirBNL
+      - mysql_username=root
+      - mysql_password=root
+    depends_on:
+      - mysql1
+  hot:
+    build: ./HotelService-main
+    container_name: hot
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - streaming-network
+    environment:
+      - auth_url=http://auth:8070
+      - database_url=http://dbc:8060
+  man:
+    build: ./ManagerService-main
+    container_name: man
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    networks:
+      - streaming-network
+    environment:
+      - auth_url=http://auth:8070
+      - database_url=http://dbc:8060
+
+
+  auth:
+    build: ./AuthenticationService-main
+    container_name: auth
+    networks:
+      - streaming-network
+    ports:
+      - "8070:8070"
+    environment:
+      - database_url=http://dbc:8060
+
+
+volumes:
+  db_data: { }
+
+networks:
+  streaming-network:
